@@ -1,0 +1,874 @@
+
+from flask import Flask, render_template_string
+
+app = Flask(__name__)
+
+HTML = r"""
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPS Tester | Broniks</title>
+
+<style>
+:root {
+    --bg: #080d0b;
+    --panel: #101a15;
+    --green: #65f5a0;
+    --muted: #91a398;
+    --border: #263a2e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at top, #153222, transparent 50%), var(--bg);
+    color: #f1f8f3;
+    font-family: "Segoe UI", Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+button { font: inherit; }
+
+header {
+    width: 100%;
+    max-width: 1100px;
+    padding: 25px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 23px;
+    font-weight: 900;
+    letter-spacing: -1px;
+}
+
+.logo span { color: var(--green); }
+
+.header-label {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 2px;
+}
+
+main {
+    width: 100%;
+    max-width: 1100px;
+    padding: 22px 20px 40px;
+    flex: 1;
+}
+
+.intro {
+    text-align: center;
+    margin: 0 0 30px;
+}
+
+.intro h1 {
+    font-size: clamp(32px, 5vw, 46px);
+    margin: 0 0 12px;
+    letter-spacing: -2px;
+}
+
+.intro h1 span { color: var(--green); }
+
+.intro p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 245px;
+    gap: 18px;
+    align-items: start;
+}
+
+.panel, .history-panel {
+    background: rgba(16, 26, 21, .95);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 22px;
+    min-width: 0;
+}
+
+.section-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 12px;
+}
+
+.modes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+    margin-bottom: 23px;
+}
+
+.mode {
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: #0b120e;
+    color: var(--muted);
+    padding: 13px 5px;
+    cursor: pointer;
+}
+
+.mode strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.mode small { font-size: 10px; }
+
+.mode.active {
+    background: #163522;
+    color: var(--green);
+    border-color: #1d9c5b;
+}
+
+.mode:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+    margin-bottom: 17px;
+}
+
+.stat {
+    background: #0b120e;
+    border: 1px solid #1d2b22;
+    border-radius: 12px;
+    padding: 15px 5px;
+    text-align: center;
+    min-width: 0;
+}
+
+.stat-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin-bottom: 9px;
+}
+
+.stat-value {
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-value.green { color: var(--green); }
+
+.zone {
+    width: 100%;
+    min-height: 235px;
+    border: 1px solid #2b6844;
+    border-radius: 16px;
+    background: radial-gradient(ellipse at center, #1b482b, #102519 48%, #0b140e);
+    color: #f1f8f3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    cursor: crosshair;
+    user-select: none;
+    touch-action: manipulation;
+    transition: .15s;
+}
+
+.zone:hover:not(:disabled) { border-color: var(--green); }
+
+.zone:active:not(:disabled) {
+    transform: scale(.995);
+    background: radial-gradient(ellipse at center, #24623a, #102519 75%);
+}
+
+.zone:disabled {
+    cursor: not-allowed;
+    opacity: .7;
+}
+
+.zone-icon {
+    font-size: 35px;
+    color: var(--green);
+    margin-bottom: 10px;
+}
+
+.zone-title {
+    font-size: clamp(17px, 3vw, 22px);
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+.zone-hint {
+    color: #a0b5a6;
+    font-size: 12px;
+    margin-top: 10px;
+    line-height: 1.6;
+    padding: 0 10px;
+}
+
+/* Крупная подсказка для завершения Live */
+
+.zone-hint.live-hint {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 13px 18px;
+    color: #07150b;
+    background: var(--green);
+    border: 1px solid #8bffb5;
+    border-radius: 11px;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    box-shadow: 0 0 20px #65f5a044;
+    animation: hintPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 12px #65f5a033; }
+    50% { box-shadow: 0 0 28px #65f5a088; }
+}
+
+.message {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 16px;
+}
+
+/* История */
+
+.history-panel { padding: 19px 15px; }
+
+.history-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+}
+
+.history-heading h2 {
+    font-size: 15px;
+    margin: 0;
+}
+
+.history-count {
+    color: var(--green);
+    font-size: 11px;
+}
+
+.history-subtitle {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+    margin-bottom: 17px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-item {
+    padding: 13px 11px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #0b120e;
+}
+
+.history-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+.history-mode {
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.history-number {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.history-cps {
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+}
+
+.history-cps-label {
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 1px;
+    margin-bottom: 9px;
+}
+
+.history-details {
+    border-top: 1px solid #1d2b22;
+    padding-top: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #a7b7ac;
+    font-size: 11px;
+}
+
+.history-details strong { color: #e9f3ec; }
+
+.history-empty {
+    min-height: 135px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 12px;
+    border: 1px dashed #2a3b30;
+    border-radius: 12px;
+}
+
+.history-empty span {
+    font-size: 25px;
+    margin-bottom: 8px;
+    color: var(--green);
+}
+
+footer {
+    width: 100%;
+    padding: 20px;
+    text-align: center;
+    color: #718479;
+    font-size: 12px;
+    border-top: 1px solid #17251c;
+}
+
+footer span {
+    color: var(--green);
+    font-weight: 800;
+}
+
+/* Окно результата */
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: #030805df;
+    backdrop-filter: blur(9px);
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-overlay.show {
+    display: flex;
+    animation: fadeIn .2s ease;
+}
+
+.modal {
+    width: 100%;
+    max-width: 390px;
+    padding: 30px 25px;
+    border-radius: 22px;
+    border: 1px solid #31583e;
+    background: #101a14;
+    text-align: center;
+    box-shadow: 0 25px 100px #0009;
+    animation: popIn .25s ease;
+}
+
+.modal h2 { margin: 0 0 8px; font-size: 25px; }
+
+.modal-description {
+    color: var(--muted);
+    margin: 0 0 23px;
+    font-size: 14px;
+}
+
+.modal-cps {
+    color: var(--green);
+    font-size: 65px;
+    line-height: 1.1;
+    font-weight: 900;
+    letter-spacing: -3px;
+}
+
+.modal-unit {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-top: 8px;
+}
+
+.modal-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 25px 0;
+}
+
+.modal-stats > div {
+    padding: 14px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #0a110d;
+}
+
+.modal-stats small {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.modal-stats strong { font-size: 21px; }
+
+.modal-ok {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    background: var(--green);
+    color: #07150b;
+    padding: 15px;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.modal-ok:hover {
+    background: #8bffb5;
+    transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: scale(.94) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    .history-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .history-item { padding: 10px 8px; }
+    .history-cps { font-size: 20px; }
+}
+
+@media (max-width: 450px) {
+    header { padding: 20px 15px; }
+    main { padding: 15px 12px 30px; }
+    .panel { padding: 14px; }
+    .mode strong { font-size: 12px; }
+    .mode small { font-size: 9px; }
+    .history-list { grid-template-columns: 1fr; }
+    .zone-hint.live-hint {
+        font-size: 13px;
+        padding: 11px 12px;
+    }
+}
+</style>
+</head>
+
+<body>
+<header>
+    <div class="logo">CPS<span>TESTER</span></div>
+    <div class="header-label">CLICK SPEED TEST</div>
+</header>
+
+<main>
+    <div class="intro">
+        <h1>Проверь свою <span>скорость</span></h1>
+        <p>Узнай, сколько кликов в секунду ты можешь сделать.<br>
+        Выбирай режим и проверь свои возможности.</p>
+    </div>
+
+    <div class="layout">
+        <section class="panel">
+            <div class="section-label">ВЫБЕРИ РЕЖИМ</div>
+
+            <div class="modes">
+                <button class="mode active" data-mode="live">
+                    <strong>∞ Live</strong>
+                    <small>Реальное время</small>
+                </button>
+                <button class="mode" data-mode="10">
+                    <strong>10 секунд</strong>
+                    <small>Быстрый тест</small>
+                </button>
+                <button class="mode" data-mode="30">
+                    <strong>30 секунд</strong>
+                    <small>Выносливость</small>
+                </button>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">ТЕКУЩИЙ CPS</div>
+                    <div class="stat-value green" id="cps">0.00</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">КЛИКИ</div>
+                    <div class="stat-value" id="clicks">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label" id="timeLabel">ВРЕМЯ</div>
+                    <div class="stat-value" id="time">0.0</div>
+                </div>
+            </div>
+
+            <button class="zone" id="zone" type="button">
+                <div class="zone-icon">✦</div>
+                <div class="zone-title" id="zoneTitle">НАЖМИ, ЧТОБЫ НАЧАТЬ</div>
+                <div class="zone-hint" id="zoneHint">
+                    Каждый клик считается. Постарайся кликать быстрее!
+                </div>
+            </button>
+
+            <div class="message" id="message">
+                Live: нажми на поле, чтобы начать.
+            </div>
+        </section>
+
+        <aside class="history-panel">
+            <div class="history-heading">
+                <h2>Последние результаты</h2>
+                <span class="history-count" id="historyCount">0 / 3</span>
+            </div>
+            <div class="history-subtitle">
+                Твои три последних завершённых теста
+            </div>
+            <div class="history-list" id="historyList"></div>
+        </aside>
+    </div>
+</main>
+
+<footer>Made with focus · <span>dev Broniks</span></footer>
+
+<div class="modal-overlay" id="resultModal">
+    <div class="modal" role="dialog" aria-modal="true">
+        <h2>Тест завершён!</h2>
+        <p class="modal-description">Вот твой результат</p>
+        <div class="modal-cps" id="resultCps">0.00</div>
+        <div class="modal-unit">CLICKS PER SECOND</div>
+
+        <div class="modal-stats">
+            <div>
+                <small>КЛИКИ</small>
+                <strong id="resultClicks">0</strong>
+            </div>
+            <div>
+                <small>ВРЕМЯ</small>
+                <strong id="resultTime">0 сек</strong>
+            </div>
+        </div>
+
+        <button class="modal-ok" id="resultOk" type="button">
+            ОК, ПРОДОЛЖИТЬ
+        </button>
+    </div>
+</div>
+
+<script>
+const zone = document.getElementById("zone");
+const cpsDisplay = document.getElementById("cps");
+const clicksDisplay = document.getElementById("clicks");
+const timeDisplay = document.getElementById("time");
+const timeLabel = document.getElementById("timeLabel");
+const zoneTitle = document.getElementById("zoneTitle");
+const zoneHint = document.getElementById("zoneHint");
+const message = document.getElementById("message");
+const modeButtons = document.querySelectorAll(".mode");
+
+const resultModal = document.getElementById("resultModal");
+const resultCps = document.getElementById("resultCps");
+const resultClicks = document.getElementById("resultClicks");
+const resultTime = document.getElementById("resultTime");
+const resultOk = document.getElementById("resultOk");
+
+const historyList = document.getElementById("historyList");
+const historyCount = document.getElementById("historyCount");
+
+let mode = "live";
+let clicks = 0;
+let running = false;
+let completed = false;
+let startTime = 0;
+let endTime = null;
+let duration = 0;
+let animationId = null;
+let history = [];
+
+try {
+    const saved = JSON.parse(localStorage.getItem("broniksCpsHistory") || "[]");
+    if (Array.isArray(saved)) history = saved.slice(0, 3);
+} catch (error) {
+    history = [];
+}
+
+function elapsed() {
+    if (!startTime) return 0;
+    const end = endTime !== null ? endTime : performance.now();
+    return Math.max(0, (end - startTime) / 1000);
+}
+
+function updateDisplay() {
+    const seconds = elapsed();
+    const cps = seconds > 0 ? clicks / seconds : 0;
+
+    cpsDisplay.textContent = cps.toFixed(2);
+    clicksDisplay.textContent = clicks;
+
+    if (mode === "live") {
+        timeLabel.textContent = "ВРЕМЯ";
+        timeDisplay.textContent = seconds.toFixed(1);
+    } else {
+        timeLabel.textContent = "ОСТАЛОСЬ";
+        timeDisplay.textContent = Math.max(0, duration - seconds).toFixed(1);
+    }
+}
+
+function renderHistory() {
+    historyCount.textContent = history.length + " / 3";
+
+    if (history.length === 0) {
+        historyList.innerHTML = `
+            <div class="history-empty">
+                <span>↗</span>
+                Здесь появятся результаты<br>после первого теста
+            </div>`;
+        return;
+    }
+
+    historyList.innerHTML = history.map((item, index) => `
+        <div class="history-item">
+            <div class="history-top">
+                <span class="history-mode">
+                    ${item.mode === "live" ? "LIVE" : item.mode + " СЕК"}
+                </span>
+                <span class="history-number">#${index + 1}</span>
+            </div>
+            <div class="history-cps">${Number(item.cps).toFixed(2)}</div>
+            <div class="history-cps-label">КЛИКОВ В СЕКУНДУ</div>
+            <div class="history-details">
+                <div>Клики: <strong>${Number(item.clicks) || 0}</strong></div>
+                <div>Время: <strong>за ${Number(item.seconds).toFixed(1)} сек</strong></div>
+            </div>
+        </div>
+    `).join("");
+}
+
+function saveResult(seconds, cps) {
+    history.unshift({
+        mode,
+        clicks,
+        seconds,
+        cps
+    });
+
+    history = history.slice(0, 3);
+
+    try {
+        localStorage.setItem("broniksCpsHistory", JSON.stringify(history));
+    } catch (error) {}
+
+    renderHistory();
+}
+
+function animationLoop() {
+    if (!running) return;
+
+    updateDisplay();
+
+    if (mode !== "live" && elapsed() >= duration) {
+        finishTest();
+        return;
+    }
+
+    animationId = requestAnimationFrame(animationLoop);
+}
+
+function startTest() {
+    if (running || completed || resultModal.classList.contains("show")) return;
+
+    clicks = 0;
+    running = true;
+    completed = false;
+    startTime = performance.now();
+    endTime = null;
+    duration = mode === "live" ? 0 : Number(mode);
+
+    zoneTitle.textContent = "КЛИКАЙ!";
+
+    zoneHint.textContent = mode === "live"
+        ? "␣ ПРОБЕЛ — ЗАВЕРШИТЬ ТЕСТ"
+        : "Кликай как можно быстрее до окончания времени";
+
+    zoneHint.classList.toggle("live-hint", mode === "live");
+
+    message.textContent = mode === "live"
+        ? "Нажми пробел, чтобы завершить Live."
+        : "Кликай до конца отсчёта!";
+
+    modeButtons.forEach(button => button.disabled = true);
+
+    updateDisplay();
+    animationId = requestAnimationFrame(animationLoop);
+}
+
+function finishTest() {
+    if (!running) return;
+
+    running = false;
+    completed = true;
+
+    endTime = performance.now();
+
+    if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+
+    updateDisplay();
+
+    const finalSeconds = elapsed();
+    const finalCps = finalSeconds > 0 ? clicks / finalSeconds : 0;
+
+    resultCps.textContent = finalCps.toFixed(2);
+    resultClicks.textContent = clicks;
+    resultTime.textContent = finalSeconds.toFixed(1) + " сек";
+
+    saveResult(finalSeconds, finalCps);
+
+    zoneTitle.textContent = "ТЕСТ ЗАВЕРШЁН";
+    zoneHint.textContent = "Нажми ОК в окне результата";
+    zoneHint.classList.remove("live-hint");
+    message.textContent = "Подтверди результат, чтобы начать заново.";
+
+    resultModal.classList.add("show");
+    resultOk.focus();
+}
+
+zone.addEventListener("pointerdown", event => {
+    event.preventDefault();
+
+    if (completed || resultModal.classList.contains("show")) return;
+
+    if (!running) startTest();
+    if (!running) return;
+
+    if (mode !== "live" && elapsed() >= duration) {
+        finishTest();
+        return;
+    }
+
+    clicks += 1;
+    updateDisplay();
+});
+
+modeButtons.forEach(button => {
+    button.addEventListener("click", () => {
+        if (running || completed) return;
+
+        mode = button.dataset.mode;
+
+        modeButtons.forEach(item => {
+            item.classList.toggle("active", item === button);
+        });
+
+        resetTest();
+    });
+});
+
+function resetTest() {
+    running = false;
+    completed = false;
+
+    if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
+
+    clicks = 0;
+    startTime = 0;
+    endTime = null;
+    duration = mode === "live" ? 0 : Number(mode);
+
+    cpsDisplay.textContent = "0.00";
+    clicksDisplay.textContent = "0";
+    timeDisplay.textContent = mode === "live" ? "0.0" : duration.toFixed(1);
+    timeLabel.textContent = mode === "live" ? "ВРЕМЯ" : "ОСТАЛОСЬ";
+
+    zoneTitle.textContent = "НАЖМИ, ЧТОБЫ НАЧАТЬ";
+    zoneHint.textContent = "Каждый клик считается. Постарайся кликать быстрее!";
+    zoneHint.classList.toggle("live-hint", mode === "live");
+
+    message.textContent = mode === "live"
+        ? "Live: нажми на поле, чтобы начать. Для завершения нажми пробел."
+        : "Кликай быстро — тест закончится автоматически.";
+
+    modeButtons.forEach(button => button.disabled = false);
+}
+
+resultOk.addEventListener("click", () => {
+    resultModal.classList.remove("show");
+    resetTest();
+});
+
+document.addEventListener("keydown", event => {
+    if (event.code === "Space" && running && mode === "live") {
+        event.preventDefault();
+        finishTest();
+    } else if (event.code === "Space") {
+        event.preventDefault();
+    }
+});
+
+renderHistory();
+resetTest();
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/")
+def home():
+    return render_template_string(HTML)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
